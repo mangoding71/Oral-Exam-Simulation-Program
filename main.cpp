@@ -1,96 +1,97 @@
 #include <iostream>
-#include <pthread.h>
-#include <semaphore.h>
+#include <windows.h>
 #include <stdio.h>
 #include <queue>
-#include <unistd.h>
 #include <cstddef>
 #include <stdlib.h>
+#include <winbase.h>
 
 using namespace std;
 
 struct student
 {
-	int flag = 0;      //è¡¨ç¤ºæ˜¯å¦ååœ¨åº§ä½ï¼Œ0è¡¨ç¤ºç«™ç€ï¼Œ1è¡¨ç¤ºåç€
+	int flag = 0;      //±íÊ¾ÊÇ·ñ×øÔÚ×ùÎ»£¬0±íÊ¾Õ¾×Å£¬1±íÊ¾×ø×Å
 	int ID;
 };
-int CurrID;  //å½“å‰å‡†å¤‡è€ƒè¯•ï¼Œæˆ–æ˜¯æ­£åœ¨è€ƒè¯•çš„è€ƒç”Ÿ
-int mynumber;
+int CurrID;  //µ±Ç°×¼±¸¿¼ÊÔ£¬»òÊÇÕıÔÚ¿¼ÊÔµÄ¿¼Éú
 student t[10];
 
-std::queue<student*> q;             //åº§ä½é˜Ÿåˆ—ï¼Œå…±äº«ç¼“å†²åŒº
-sem_t seat,person,mutex,exam_done,check,notice;
+std::queue<student*> q;             //×ùÎ»¶ÓÁĞ£¬¹²Ïí»º³åÇø
 
-void *examinee(void *lp)
+HANDLE seat, person, mutex, exam_done, check_flag, notify_flag;		//¶ÔÏó¶¨Òå,¾ä±ú
+
+//¿¼ÉúÏß³Ì
+DWORD WINAPI examinee(LPVOID lp)
 {
-    student* data = (student*)lp;
-    sem_wait(&seat);
-    sem_wait(&mutex);
-    if (data->flag == 0)                        //è€ƒç”Ÿè¿›å…¥åº§ä½ï¼Œå³æ˜¯åŠ å…¥é˜Ÿåˆ—
+	student* data = (student*)lp;
+	WaitForSingleObject(seat, INFINITE);		//P(seat)
+
+	WaitForSingleObject(mutex, INFINITE);		//P(mutex)
+
+	if (data->flag == 0)                        //¿¼Éú½øÈë×ùÎ»£¬¼´ÊÇ¼ÓÈë¶ÓÁĞ
 	{
 		q.push(data);
 		data->flag++;
 	}
-	cout << data->ID << "å·è€ƒç”Ÿååˆ°åº§ä½ä¸Š" << endl;
+	cout << data->ID << "ºÅ¿¼Éú×øµ½×ùÎ»ÉÏ" << endl;
+    int q_size = q.size();
 
-
-    sem_post(&mutex);
-    sem_post(&person);
-    sem_wait(&exam_done);
-}
-
-void *assistant(void *lp)
-{
-    while(1)
+    //Êä³öµ±Ç°¶ÓÁĞ£¨×ùÎ»ÉÏµÄ¿¼Éú£©
+    cout << "µ±Ç°×ùÎ»ÉÏµÄ¿¼Éú£¨ÓÉÇ°Ïòºó£©£º" ;
+    for(int i = 0; i < q_size; i++)
     {
-        sem_wait(&check);
-        sem_wait(&person);
-        sem_wait(&mutex);
-        if (!q.empty())                                     //é¡ºåºå«èµ·ä¸€åè€ƒç”Ÿï¼Œè…¾å‡ºä¸€æŠŠæ¤…å­
+      cout << q.front()->ID<< "  ";
+      q.push(q.front());
+      q.pop();
+    }
+    cout << endl;
+
+	ReleaseMutex(mutex);						//V(mutex)
+	ReleaseSemaphore(person, 1, NULL);			//V(person)
+	WaitForSingleObject(exam_done, INFINITE);   //P(exam_done),¿¼ÊÔ½áÊø×¼±¸Àë¿ª
+	return 0;
+}
+//ÖúÀíÏß³Ì
+DWORD WINAPI assistant(LPVOID lpParameter)
+{
+	while (1)
+	{
+		WaitForSingleObject(check_flag, INFINITE);			//P(check_flag),Ñ¯ÎÊÖ÷¿¼ÊÇ·ñÓĞ¿Õ
+		WaitForSingleObject(person, INFINITE);		        //P(person),¼ì²é×ùÎ»ÊÇ·ñÓĞÈË
+		WaitForSingleObject(mutex, INFINITE);		//P(mutex)
+		if (!q.empty())                                     //Ë³Ğò½ĞÆğÒ»Ãû¿¼Éú£¬ÌÚ³öÒ»°ÑÒÎ×Ó
 		{
 			CurrID = q.front()->ID;
 			q.pop();
 		}
-		printf("                         %då·è€ƒç”Ÿè¿›å…¥è€ƒåœº\n", CurrID);
-        sem_post(&mutex);
-		sem_post(&seat);
-        sem_post(&notice);
-    }
-
+		printf("                                            %dºÅ¿¼Éú½øÈë¿¼³¡\n", CurrID);
+        ReleaseMutex(mutex);						//V(mutex)
+		ReleaseSemaphore(seat, 1, NULL);                     //V(seat),²úÉúÒ»°Ñ¿ÕÒÎ×Ó
+		ReleaseSemaphore(notify_flag, 1, NULL);              //V(notify_flag),Í¨ÖªÖ÷¿¼ÓĞÈË½øÈë
+	}
+	return 0;
 }
-
-void *examiner(void *lp)
+//Ö÷¿¼Ïß³Ì
+DWORD WINAPI examiner(LPVOID lpParameter)
 {
-    while(1)
-    {
-        sem_wait(&notice);
-        //å¼€å§‹è€ƒè¯•
-		cout <<"                                             "<<CurrID << "å·è€ƒç”Ÿæ­£åœ¨è€ƒè¯•" << endl;
-		sys_mysleep(mynumber);                      //æ¨¡æ‹Ÿè€ƒè¯•ç­‰å¾…
-		cout <<"                                             "<<CurrID << "å·è€ƒç”Ÿè€ƒè¯•ç»“æŸ" << endl;
-
-        int q_size = q.size();
-        if (!q.empty())
+	while (1)
+	{
+		WaitForSingleObject(notify_flag, INFINITE);		    //P(notify_flag)£¬Ñ¯ÎÊÊÇ·ñÓĞ¿¼Éú½øÈë
+		//¿ªÊ¼¿¼ÊÔ
+		cout <<"                                                             "<<CurrID << "ºÅ¿¼ÉúÕıÔÚ¿¼ÊÔ" << endl;
+		//Sleep(1500);                        //Ä£Äâ¿¼ÊÔµÈ´ı
+		cout <<"                                                             "<<CurrID << "ºÅ¿¼Éú¿¼ÊÔ½áÊø" << endl;
+        if (q.empty())
 		{
-            //è¾“å‡ºå½“å‰é˜Ÿåˆ—ï¼ˆåº§ä½ä¸Šçš„è€ƒç”Ÿï¼‰
-            cout << "å½“å‰åº§ä½ï¼š" ;
-            for(int i = 0; i < q_size; i++)
-            {
-                cout << q.front()->ID<< "  ";
-                q.push(q.front());
-                q.pop();
-            }
-            cout << endl;
+			cout << "¿ÚÓï¿¼ÊÔ½áÊø£¡" <<endl;
+			return 1;
 		}
-
-
-		sem_post(&exam_done);
-        sem_post(&check);
-
-    }
+		ReleaseSemaphore(exam_done, 1, NULL);                 //V(exam_done),Í¨Öª¿¼Éú¿¼ÊÔ½áÊø£¬¿ÉÒÔÀë¿ª
+		ReleaseSemaphore(check_flag, 1, NULL);              //V(check_flag),±íÊ¾Ö÷¿¼¿ÕÏĞ
+	}
+	return 0;
 }
 
-//è€ƒç”Ÿç¼–å·åˆå§‹åŒ–
 void initialize_student()
 {
     for (int i = 0; i < 10; i++)
@@ -104,40 +105,56 @@ void visual()
 {
 
     cout << "     **************************************************" << endl;
-    cout << "        *********ç¬¬ä¸€é¢˜ ï¼šçº¿ç¨‹çš„åŒæ­¥ä¸äº’æ–¥**********   " << endl;
-    cout << "              ************æ“ä½œ ç³»ç»Ÿ*************        " << endl;
-    cout << "              ************Linuxç‰ˆæœ¬************        " << endl;
+    cout << "        *********µÚÒ»Ìâ £ºÏß³ÌµÄÍ¬²½Óë»¥³â**********   " << endl;
+    cout << "              ************²Ù×÷ÏµÍ³*************        " << endl;
     cout << endl;
+
 }
 
-int main(int argc,char*argv[])
+int main(int argc, char* argv)
 {
-    initialize_student();//åˆå§‹åŒ–è€ƒç”Ÿç»“æ„ä½“
-    cout << "è¯·è¾“å…¥ä½ çš„å­¦å·ï¼š " ;
-    cin >> mynumber;
-    visual();
 
-	//ä¿¡å·é‡åˆå§‹åŒ–
-	sem_init(&seat,0,5);
-	sem_init(&person,0,0);
-    sem_init(&mutex,0,1);
-    sem_init(&exam_done,0,1);
-    sem_init(&check,0,1);
-    sem_init(&notice,0,0);
-    //åˆ›å»ºçº¿ç¨‹
+    initialize_student();//³õÊ¼»¯¿¼Éú½á¹¹Ìå
 
-    pthread_t tid0;
-    pthread_t tid1;
-    pthread_t tid2;
-    static int i;           //çº¿ç¨‹çš„åˆ›å»ºï¼Œéœ€è¦ä½¿ç”¨é™æ€å˜é‡
-    for (i = 0; i < 10; i++)
-        pthread_create(&tid0,NULL,examinee,&t[i]);
+	visual();
 
-    pthread_create(&tid1,NULL,assistant,NULL);
+    //´´½¨Ò»¸öĞÅºÅÁ¿(ĞÅºÅÁ¿µÄÊôĞÔ£¬³õÊ¼Öµ£¬×î´óÖµ£¬Ãû×Ö)
+	seat = CreateSemaphore(NULL, 5, 5, NULL);		//seat±íÊ¾¿Õ×ùÎ»µÄÊıÁ¿
+	person = CreateSemaphore(NULL, 0, 5, NULL);       //person±íÊ¾×ùÎ»ÉÏµÄÈËÊı
 
-    pthread_create(&tid2,NULL,examiner,NULL);
+	//´´½¨Ò»¸ö»¥³âÁ¿(Ö¸Ïò°²È«ÊôĞÔµÄÖ¸Õë£¬³õÊ¼»¯»¥³â¶ÔÏóµÄËùÓĞÕß*FALSE±íÊ¾²»±»ÈÎºÎÏß³ÌÓµÓĞ£¬Ö¸Ïò»¥³â¶ÔÏóÃûµÄÖ¸Õë£©
+	mutex = CreateMutex(NULL, FALSE, NULL);             //»¥³âĞÅºÅÁ¿À´±£»¤¹²Ïí»º³åÇø£¨×ùÎ»£©
 
-    pthread_exit(0);
-    return 0;
+	exam_done = CreateSemaphore(NULL, 1, 1, NULL);
+	check_flag = CreateSemaphore(NULL, 1, 1, NULL);
+	notify_flag = CreateSemaphore(NULL, 0, 1, NULL);
+
+	//¿¼ÉúµÄÏß³Ì½¨Á¢
+	HANDLE examinee_Thread[10];
+	static int i;           //Ïß³ÌµÄ´´½¨£¬ĞèÒªÊ¹ÓÃ¾²Ì¬±äÁ¿
+	for (i = 0; i < 10; i++)
+        examinee_Thread[i]=CreateThread(NULL,0,examinee,&t[i],0,NULL);//£¨Ö¸Ïò°²È«ÊôĞÔµÄÖ¸Õë£¬³õÊ¼»¯Ïß³Ì¶ÑÕ»´óĞ¡£¬Ïß³ÌµÄÆğÊ¼µØÖ·£¬¸øÏß³Ì´«µİµÄ²ÎÊı£¬Ïß³ÌµÄ±êÖ¾0ÊÇÁ¢¼´ÔËĞĞ£¬Ïß³ÌµÄID£©
+	//ÖúÀíµÄÏß³Ì½¨Á¢
+    HANDLE assistant_Thread=CreateThread(NULL,0,assistant,NULL,0,NULL);
+	//Ö÷¿¼µÄÏß³Ì½¨Á¢
+	HANDLE examiner_Thread=CreateThread(NULL,0,examiner,NULL,0,NULL);
+
+	getchar();
+
+	//ËùÓĞÏß³ÌÖ´ĞĞÍê±Ïºó¹Ø±Õ
+
+	//ÓĞ½èÓĞ»¹
+	CloseHandle(mutex);
+	CloseHandle(seat);
+	CloseHandle(person);
+	CloseHandle(exam_done);
+	CloseHandle(check_flag);
+	CloseHandle(notify_flag);
+	for (int i = 0; i < 10; i++)
+		CloseHandle(examinee_Thread[i]);
+	CloseHandle(assistant_Thread);
+	CloseHandle(examiner_Thread);
+
+	return 0;
 }
 
