@@ -1,12 +1,3 @@
-/*    192182-18 ¶¡ºêÁ¦ ²Ù×÷ÏµÍ³ÉÏ»ú 2020.11
-ÌâÄ¿Ò»£º¿ÚÓï¿¼ÊÔÄ£Äâ³ÌĞò£¨Ïß³ÌµÄÍ¬²½/»¥³â£©
-ÌâÄ¿³¡¾°£º
-Ä³ÍâÓï¿¼ÊÔ£¬Ö÷¿¼ÔÚ¿¼³¡¶Ô10ÃûÓ¦ÊÔÕß½øĞĞ¿¼ºË¡£¿¼³¡ÄÚ²¿Ã¿´ÎÖ»ÄÜ½Ó´ı1Ãû¿¼Éú¡£ÔÚ¿¼³¡Íâ²¿µÄ×ßÀÈÀï£¬ÓĞ5°ÑÒÎ×Ó£¬ÓĞ1ÃûÖúÀí¶Ô×øÔÚÒÎ×ÓÉÏµÄ¿¼Éú½øĞĞ½ĞºÅ¡£
-¹æÔòÊÇ£º
-    1.¿¼ÉúĞèÒªÊ×ÏÈ×øÔÚ×ßÀÈÀïµÄÒÎ×ÓÉÏ°´ÕÕË³ĞòµÈ´ı£¬Èç¹ûÃ»ÓĞ¿ÕÒÎ×Ó£¬Ö»ÄÜµÈÆäËû¿¼ÉúÌÚ³öÒÎ×Ó¡£
-    2.ÖúÀí¸ºÔğ´Ó×øÔÚÒÎ×ÓÉÏÅÅ¶ÓµÈºòµÄ¿¼ÉúÖĞË³ĞòÒıÁìÒ»Ãû¿¼Éú½øÈë¿¼³¡£»Èç¹ûÃ»ÓĞÈËµÈ´ı£¬ÖúÀíµÈºò£»
-    Èç¹û¿¼³¡ÖĞÒÑÓĞ¿¼ÉúÓ¦¿¼£¬ÔòĞëµÈµ±Ç°¿¼Éú½áÊø¿¼ÊÔºó²ÅÄÜÒıÁìÏÂÒ»Î»¿¼Éú¡£
-    3.µ±Ö÷¿¼¿¼ºËÍêÒ»Ãû¿¼Éúºó£¬¿¼Éú·½¿ÉÀë¿ª£»Í¬Ê±£¬¿¼ÉúµÈ´ıÖúÀíÒıÁìÏÂÒ»Î»¿¼Éú½øÈë£»Èç¹ûÃ»ÓĞ¿¼Éú½øÈë£¬Ö÷¿¼µÈ´ı¡£*/
 #include <iostream>
 #include <pthread.h>
 #include <semaphore.h>
@@ -20,14 +11,14 @@ using namespace std;
 
 struct student
 {
-	int flag = 0;      //±íÊ¾ÊÇ·ñ×øÔÚ×ùÎ»£¬0±íÊ¾Õ¾×Å£¬1±íÊ¾×ø×Å
+	int flag = 0;      //è¡¨ç¤ºæ˜¯å¦ååœ¨åº§ä½ï¼Œ0è¡¨ç¤ºç«™ç€ï¼Œ1è¡¨ç¤ºåç€
 	int ID;
 };
-int CurrID;  //µ±Ç°×¼±¸¿¼ÊÔ£¬»òÊÇÕıÔÚ¿¼ÊÔµÄ¿¼Éú
+int CurrID;  //å½“å‰å‡†å¤‡è€ƒè¯•ï¼Œæˆ–æ˜¯æ­£åœ¨è€ƒè¯•çš„è€ƒç”Ÿ
 int mynumber;
 student t[10];
 
-std::queue<student*> q;             //×ùÎ»¶ÓÁĞ£¬¹²Ïí»º³åÇø
+std::queue<student*> q;             //åº§ä½é˜Ÿåˆ—ï¼Œå…±äº«ç¼“å†²åŒº
 sem_t seat,person,mutex,exam_done,check,notice;
 
 void *examinee(void *lp)
@@ -35,12 +26,12 @@ void *examinee(void *lp)
     student* data = (student*)lp;
     sem_wait(&seat);
     sem_wait(&mutex);
-    if (data->flag == 0)                        //¿¼Éú½øÈë×ùÎ»£¬¼´ÊÇ¼ÓÈë¶ÓÁĞ
+    if (data->flag == 0)                        //è€ƒç”Ÿè¿›å…¥åº§ä½ï¼Œå³æ˜¯åŠ å…¥é˜Ÿåˆ—
 	{
 		q.push(data);
 		data->flag++;
 	}
-	cout << data->ID << "ºÅ¿¼Éú×øµ½×ùÎ»ÉÏ" << endl;
+	cout << data->ID << "å·è€ƒç”Ÿååˆ°åº§ä½ä¸Š" << endl;
 
 
     sem_post(&mutex);
@@ -55,12 +46,12 @@ void *assistant(void *lp)
         sem_wait(&check);
         sem_wait(&person);
         sem_wait(&mutex);
-        if (!q.empty())                                     //Ë³Ğò½ĞÆğÒ»Ãû¿¼Éú£¬ÌÚ³öÒ»°ÑÒÎ×Ó
+        if (!q.empty())                                     //é¡ºåºå«èµ·ä¸€åè€ƒç”Ÿï¼Œè…¾å‡ºä¸€æŠŠæ¤…å­
 		{
 			CurrID = q.front()->ID;
 			q.pop();
 		}
-		printf("                         %dºÅ¿¼Éú½øÈë¿¼³¡\n", CurrID);
+		printf("                         %då·è€ƒç”Ÿè¿›å…¥è€ƒåœº\n", CurrID);
         sem_post(&mutex);
 		sem_post(&seat);
         sem_post(&notice);
@@ -73,16 +64,16 @@ void *examiner(void *lp)
     while(1)
     {
         sem_wait(&notice);
-        //¿ªÊ¼¿¼ÊÔ
-		cout <<"                                             "<<CurrID << "ºÅ¿¼ÉúÕıÔÚ¿¼ÊÔ" << endl;
-		sys_mysleep(mynumber);                      //Ä£Äâ¿¼ÊÔµÈ´ı
-		cout <<"                                             "<<CurrID << "ºÅ¿¼Éú¿¼ÊÔ½áÊø" << endl;
+        //å¼€å§‹è€ƒè¯•
+		cout <<"                                             "<<CurrID << "å·è€ƒç”Ÿæ­£åœ¨è€ƒè¯•" << endl;
+		sys_mysleep(mynumber);                      //æ¨¡æ‹Ÿè€ƒè¯•ç­‰å¾…
+		cout <<"                                             "<<CurrID << "å·è€ƒç”Ÿè€ƒè¯•ç»“æŸ" << endl;
 
         int q_size = q.size();
         if (!q.empty())
 		{
-            //Êä³öµ±Ç°¶ÓÁĞ£¨×ùÎ»ÉÏµÄ¿¼Éú£©
-            cout << "µ±Ç°×ùÎ»£º" ;
+            //è¾“å‡ºå½“å‰é˜Ÿåˆ—ï¼ˆåº§ä½ä¸Šçš„è€ƒç”Ÿï¼‰
+            cout << "å½“å‰åº§ä½ï¼š" ;
             for(int i = 0; i < q_size; i++)
             {
                 cout << q.front()->ID<< "  ";
@@ -99,7 +90,7 @@ void *examiner(void *lp)
     }
 }
 
-//¿¼Éú±àºÅ³õÊ¼»¯
+//è€ƒç”Ÿç¼–å·åˆå§‹åŒ–
 void initialize_student()
 {
     for (int i = 0; i < 10; i++)
@@ -113,33 +104,32 @@ void visual()
 {
 
     cout << "     **************************************************" << endl;
-    cout << "        *********µÚÒ»Ìâ £ºÏß³ÌµÄÍ¬²½Óë»¥³â**********   " << endl;
-    cout << "              ************²Ù×÷ ÏµÍ³*************        " << endl;
-    cout << "              ************Linux°æ±¾************        " << endl;
+    cout << "        *********ç¬¬ä¸€é¢˜ ï¼šçº¿ç¨‹çš„åŒæ­¥ä¸äº’æ–¥**********   " << endl;
+    cout << "              ************æ“ä½œ ç³»ç»Ÿ*************        " << endl;
+    cout << "              ************Linuxç‰ˆæœ¬************        " << endl;
     cout << endl;
-
 }
 
 int main(int argc,char*argv[])
 {
-    initialize_student();//³õÊ¼»¯¿¼Éú½á¹¹Ìå
-    cout << "ÇëÊäÈëÄãµÄÑ§ºÅ£º " ;
+    initialize_student();//åˆå§‹åŒ–è€ƒç”Ÿç»“æ„ä½“
+    cout << "è¯·è¾“å…¥ä½ çš„å­¦å·ï¼š " ;
     cin >> mynumber;
     visual();
 
-	//ĞÅºÅÁ¿³õÊ¼»¯
+	//ä¿¡å·é‡åˆå§‹åŒ–
 	sem_init(&seat,0,5);
 	sem_init(&person,0,0);
     sem_init(&mutex,0,1);
     sem_init(&exam_done,0,1);
     sem_init(&check,0,1);
     sem_init(&notice,0,0);
-    //´´½¨Ïß³Ì
+    //åˆ›å»ºçº¿ç¨‹
 
     pthread_t tid0;
     pthread_t tid1;
     pthread_t tid2;
-    static int i;           //Ïß³ÌµÄ´´½¨£¬ĞèÒªÊ¹ÓÃ¾²Ì¬±äÁ¿
+    static int i;           //çº¿ç¨‹çš„åˆ›å»ºï¼Œéœ€è¦ä½¿ç”¨é™æ€å˜é‡
     for (i = 0; i < 10; i++)
         pthread_create(&tid0,NULL,examinee,&t[i]);
 
@@ -150,3 +140,4 @@ int main(int argc,char*argv[])
     pthread_exit(0);
     return 0;
 }
+
